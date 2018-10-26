@@ -1,0 +1,3 @@
+library(tidyverse)
+marine_data <- read.tsv(file.choose())
+View(maine_data)
