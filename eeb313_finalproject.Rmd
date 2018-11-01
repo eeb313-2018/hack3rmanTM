@@ -69,8 +69,7 @@ pred_prey_conv %>%
 pred_prey_conv %>% 
   group_by(geographic_location, specific_habitat, predator, prey) %>% 
   summarise(mean_predator_mass = mean(predator_mass),
-            mean_prey_mass = mean(prey_mass_conv)) %>% 
-  View()
+            mean_prey_mass = mean(prey_mass_conv))
 ```
 
 
