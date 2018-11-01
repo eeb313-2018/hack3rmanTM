@@ -2,13 +2,14 @@
 title: "lec_1/11/18"
 output: html_document
 ---
-
+# Set-up
 ```{r}
 library(tidyverse)
 pred_prey <- read_tsv(file.choose())
 View(pred_prey)
 ```
 
+## Prelim analysis
 ```{r}
 colnames(pred_prey) <- tolower(gsub(' ', '_', colnames(pred_prey)))
 
@@ -38,6 +39,7 @@ ggplot(plot_data, aes(x = mean_pred_length, y = mean_prey_mass)) +
     geom_smooth()
 ```
 
+## Organizing
 ```{r}
 colnames(pred_prey)
 ```
@@ -50,6 +52,7 @@ pred_prey_conv <- pred_prey_s %>%
   mutate(prey_mass_conv = ifelse(.$prey_mass_unit == "mg", .$prey_mass * 1000, .$prey_mass))
 ```
 
+## Finding ALL niches
 ```{r}
 unique(pred_prey_conv$geographic_location)
 ```
