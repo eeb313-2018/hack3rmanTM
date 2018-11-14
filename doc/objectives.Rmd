@@ -2,9 +2,24 @@
 title: "objectives"
 output: html_document
 ---
+<<<<<<< HEAD
 
 # Study Objectives
 
 - Question 1
 - Question 2
 - Question 3
+=======
+# Study Objectives
+- Differences between niches
+    - There are several different niches in the data set(specific habitats within geographic locations)
+    - First question: How do the niches differ? Are the predators/ prey different? Do predator/ prey distributions/ masses vary with location/ temperature/ depth?
+
+
+- specialists vs. generalists
+    - Some predators are generalists, and consume many taxa of prey
+    - Others only consume a single species of prey
+    - Research Questions: 
+        - Are specialists or generalists more successful?
+        - Does this change based on the conditions in the niche?
+>>>>>>> 98f6815b4b8a9201affbfec7159ae406145525bc
