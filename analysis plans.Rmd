@@ -22,5 +22,5 @@ output: html_document
 - scatter plot to model relative fitness between generalists and specialists 
   - fit the scatter to see if one is consistenly more fit than the other
   
-- box plots by niche of specialist fitness vs geenral fitness
+- box plots by niche of specialist fitness vs general fitness
   - compare by niche to see if specialists are more fit or generalists are more fit
