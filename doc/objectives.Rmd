@@ -1,0 +1,16 @@
+---
+title: "objectives"
+output: html_document
+---
+# Study Objectives
+- Differences between niches
+    - There are several different niches in the data set(specific habitats within geographic locations)
+    - First question: How do the niches differ? Are the predators/ prey different? Do predator/ prey distributions/ masses vary with location/ temperature/ depth?
+
+
+- specialists vs. generalists
+    - Some predators are generalists, and consume many taxa of prey
+    - Others only consume a single species of prey
+    - Research Questions: 
+        - Are specialists or generalists more successful?
+        - Does this change based on the conditions in the niche?
