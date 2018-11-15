@@ -72,6 +72,12 @@ pred_prey_conv %>%
             mean_prey_mass = mean(prey_mass_conv))
 ```
 
+```{r}
+write_csv(pred_prey_conv, "/Users/matthewlindsay/marine_data_converted.csv")
+
+```
+
+
 
 
 
