@@ -70,6 +70,12 @@ pred_prey_conv %>%
   View()
 ```
 
+```{r}
+write_csv(pred_prey_conv, "/Users/matthewlindsay/marine_data_converted.csv")
+
+```
+
+
 
 
 
