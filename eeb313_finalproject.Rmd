@@ -5,8 +5,9 @@ output: html_document
 # Set-up
 ```{r}
 library(tidyverse)
+library(dplyr)
 pred_prey <- read_tsv(file.choose())
-View(pred_prey)
+View(pred_prey_conv)
 ```
 
 ## Prelim analysis
@@ -78,9 +79,32 @@ write_csv(pred_prey_conv, "/Users/matthewlindsay/marine_data_converted.csv")
 ```
 
 
+```{r}
+data<- pred_prey_conv
+
+prey_type_tally<- data %>% 
+  select(predator, prey) %>% 
+  group_by(predator, prey) %>% 
+  tally()
 
 
+collapsed_prey<- prey_type_tally %>% 
+  select(prey) %>% 
+  tally()
 
+
+new<- data %>% 
+  group_by(predator)
+  
+
+new<- collapsed_prey %>% 
+  mutate(predatorclass = ifelse(n>1, "Generalist", "Specialist"))
+new
+
+# within each niche, is S or G more successful? proxy is mass, population.
+
+
+```
 
 
 
