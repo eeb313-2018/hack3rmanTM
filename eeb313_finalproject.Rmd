@@ -5,8 +5,13 @@ output: html_document
 # Set-up
 ```{r}
 library(tidyverse)
-pred_prey <- read_tsv(file.choose())
-View(pred_prey)
+library(dplyr)
+pred_prey <- read_delim("~/Desktop/Predator_and_prey_body_sizes_in_marine_food_webs_vsn4.txt", delim = "\t")
+```
+
+```{r}
+pred_prey$test <- str_replace(pred_prey$latitude, "\xba", ".")
+pred_prey$test
 ```
 
 ## Prelim analysis
@@ -44,9 +49,10 @@ ggplot(plot_data, aes(x = mean_pred_length, y = mean_prey_mass)) +
 colnames(pred_prey)
 ```
 
+# Run From Here
 ```{r}
 pred_prey_s <- pred_prey %>% 
-  select(predator, prey, predator_mass, prey_mass, prey_mass_unit, geographic_location, mean_annual_temp, mean_pp, specific_habitat)
+  select(predator, prey, predator_mass, prey_mass, prey_mass_unit, geographic_location, mean_annual_temp, mean_pp, specific_habitat, latitude)
 
 pred_prey_conv <- pred_prey_s %>% 
   mutate(prey_mass_conv = ifelse(.$prey_mass_unit == "mg", .$prey_mass * 1000, .$prey_mass))
@@ -73,15 +79,44 @@ pred_prey_conv %>%
 ```
 
 ```{r}
-write_csv(pred_prey_conv, "/Users/matthewlindsay/marine_data_converted.csv")
-
+#write_csv(pred_prey_conv, "/Users/matthewlindsay/marine_data_converted.csv")
 ```
 
+```{r}
+data<- pred_prey_conv
+
+prey_type_tally<- data %>% 
+  select(predator, prey) %>% 
+  group_by(predator, prey) %>% 
+  tally()
 
 
+collapsed_prey<- prey_type_tally %>% 
+  select(prey) %>% 
+  tally()
 
 
+new<- data %>% 
+  group_by(predator)
+  
 
+new<- collapsed_prey %>% 
+  mutate(predatorclass = ifelse(n>1, "Generalist", "Specialist"))
+new
+# within each niche, is S or G more successful? proxy is mass, population. Using number of observations as a proxy for populaiton size, must acknoledge the faults with this
+```
+
+# Dealing with latitude
+```{r}
+#pred_prey_conv$latitude = gsub('<ba>', ' ', pred_prey_conv$latitude) %>% 
+  View()
+#pred_prey_conv$latitude = measurements::conv_unit(pred_prey_conv$latitude, from = 'deg_dec_min', to = 'dec_deg')
+```
+
+```{r}
+#pred_prey_conv$test <- str_replace(pred_prey_conv$latitude, "<ba>", ".")
+#View(pred_prey_conv)
+```
 
 
 
