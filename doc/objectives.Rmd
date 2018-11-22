@@ -2,6 +2,14 @@
 title: "objectives"
 output: html_document
 ---
+<<<<<<< HEAD
+
+# Study Objectives
+
+- Question 1
+- Question 2
+- Question 3
+=======
 # Study Objectives
 - Differences between niches
     - There are several different niches in the data set(specific habitats within geographic locations)
@@ -14,3 +22,4 @@ output: html_document
     - Research Questions: 
         - Are specialists or generalists more successful?
         - Does this change based on the conditions in the niche?
+>>>>>>> 98f6815b4b8a9201affbfec7159ae406145525bc
