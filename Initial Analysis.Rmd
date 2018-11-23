@@ -1,0 +1,58 @@
+---
+title: "Intial Analysis"
+output: html_document
+---
+
+```{r}
+library(tidyverse)
+```
+
+
+```{r}
+data <- read_delim("pred_prey_data", delim = "\t")
+```
+
+```{r}
+## Convert Latitude to numbers
+data$NewLatitude <- str_replace(data$Latitude, "\xba", ".")
+data$NewLatitude <- str_replace(data$NewLatitude, "'", "")
+data$NewLatitude <- str_replace(data$NewLatitude, "N", "")
+View(data)
+```
+
+```{r}
+## Select columns of interest
+data1 <- data %>% 
+  mutate(prey_mass_conv = ifelse(.$`Prey mass unit` == "mg", .$`Prey mass` * 1000, .$`Prey mass`)) %>% 
+  select(Predator, Prey, `Predator mass`, prey_mass_conv, `Type of feeding interaction`, `Geographic location`, `Specific habitat`, Depth, `Mean PP`, `Mean annual temp`, NewLatitude) %>% 
+  mutate(Genus = stringr::word(Predator, 1))
+
+
+write_csv(data1, "Finalized_Marine_Data.csv")
+#View(data1)
+```
+
+```{r}
+## Count number of total observations and number of observations of individual genera within a niche
+data2 <- data1 %>%   
+ dplyr::group_by(`Geographic location`, `Specific habitat`) %>% 
+  mutate(n = n()) %>% 
+  ungroup() %>% 
+  group_by(`Geographic location`, `Specific habitat`, Genus) %>% 
+  mutate(N_genus = n()) %>% 
+  ungroup()
+
+View(data2)
+```
+
+```{r}
+data3 <- data2 %>% 
+  group_by(`Geographic location`, `Specific habitat`, Genus) %>% 
+  mutate(Ratio = (N_genus / n)) %>% 
+  summarize(Ratio = mean(Ratio))
+
+View(data3)
+```
+```
+
+
