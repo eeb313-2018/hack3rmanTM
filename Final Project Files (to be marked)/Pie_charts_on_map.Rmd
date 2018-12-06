@@ -1,0 +1,126 @@
+---
+title: "Feeding_Interaction_Map"
+output: html_document
+---
+
+# Make nice dataframe 
+```{r}
+# written in full by Joshua Craig
+
+library(tidyverse)
+my_data <- read_delim("~/Desktop/Predator_and_prey_body_sizes_in_marine_food_webs_vsn4.txt", delim = "\t")
+
+# rename columns
+colnames(my_data) <- tolower(gsub(' ', '_', colnames(my_data)))
+
+# convert latitudes and longitudes
+my_data$newlatitude <- str_replace(my_data$latitude, "\xba", ".")
+my_data$newlatitude <- str_replace(my_data$newlatitude, "'", "")
+
+my_data$newlong <- str_replace(my_data$longitude, "\xba", ".")
+my_data$newlong <- str_replace(my_data$newlong, "'", "")
+
+my_data$lat <- substr(my_data$newlatitude, start = 1, stop = 2)
+my_data$lat <- as.numeric(my_data$lat)
+my_data$lat <- ifelse(substr(my_data$newlatitude, start = 6, stop = 6) == "S", my_data$lat * (-1), my_data$lat)
+
+my_data$long <- substr(my_data$newlong, start = 1, stop = 2)
+my_data$long <- as.numeric(my_data$long)
+my_data$long <- ifelse(substr(my_data$newlong, start = 6, stop = 6) == "W", my_data$long * (-1), my_data$long) 
+
+# cleaning up data frame with columns needed to make the map
+my_df_mapping <- my_data %>% 
+  group_by(geographic_location) %>% 
+  select(geographic_location, newlatitude, lat, long) %>% 
+  unique()
+```
+
+# Packages for the map
+```{r}
+install.packages("maps")
+install.packages("ggmap")
+library(maps)
+library(ggmap)
+```
+
+# Making the map with ggplot no pie charts
+```{r}
+visit.x <- my_df_mapping$long
+visit.y <- my_df_mapping$lat
+mp <- NULL
+mapWorld <- borders("world", colour="gray50", fill="gray50") # create a layer of borders
+mp <- ggplot() +   mapWorld
+mp <- mp+ geom_point(aes(x=visit.x, y=visit.y), color="blue", size=3) 
+np <- mp + ggtitle("Global Distribution of Feeding Interactions")
+np
+```
+
+# Pie charts
+```{r}
+# setting up the data frame to be appropriate for pie charts
+data <- my_data %>% 
+  select(predator, prey, predator_mass, type_of_feeding_interaction, geographic_location, specific_habitat, depth, mean_pp, mean_annual_temp, newlatitude)
+
+data2 <- data %>%   
+  dplyr::group_by(geographic_location, specific_habitat) %>% 
+  mutate(n = n()) %>% 
+  ungroup() %>% 
+  group_by(geographic_location, specific_habitat, type_of_feeding_interaction) %>% 
+  mutate(n_FI = n()) %>% 
+  ungroup()
+```
+
+```{r}
+data3 <- data2 %>% 
+  group_by(geographic_location, specific_habitat, type_of_feeding_interaction) %>% 
+  mutate(Ratio = (n_FI / n)) %>% 
+  summarize(Ratio = mean(Ratio), n_FI = mean(n_FI), n = mean(n))
+
+data4 <- spread(data3, type_of_feeding_interaction, Ratio)
+data4[is.na(data4)] <- 0
+data5 <- my_df_mapping[-c(3, 21), ]
+data6 <- merge(data5, data4)
+data7 <- data6 %>% select(-specific_habitat, -newlatitude)
+data8 <- data7 %>%
+  group_by(geographic_location, lat, long) %>%
+  summarise_all(sum) %>%
+  data.frame()
+# everything else in this chunk is pretty much data wrangling but this next line 
+# log transforms the number of observations per geographic location so pie chart area can scale and makes it a column
+data8$radius <- log(data8$n_FI) * 1.33
+data9 <- data8 %>% select(-n_FI, -n)
+```
+
+# Using Scatterpie to plot pie charts on a world map
+```{r}
+install.packages("scatterpie")
+library(scatterpie)
+```
+
+```{r}
+world <- map_data('world')
+
+p <- ggplot(world, aes(long, lat)) +
+    geom_map(map=world, aes(map_id=region), fill=NA, color="black") +
+    coord_quickmap()
+```
+
+```{r}
+q <- p + geom_scatterpie(data = data9, 
+                    aes(x=long, y=lat, r = radius),
+                    cols = c("insectivorous", "piscivorous", "planktivorous", "predacious", "predacious.piscivorous"),
+                    alpha = .8,
+                    color = NA)
+```
+
+```{r}
+r <- q + ggtitle("Distribution of Feeding Interactions per Geographic Location")
+r
+```
+```{r}
+# png(filename="world_pie_chart")
+```
+
+
+
+

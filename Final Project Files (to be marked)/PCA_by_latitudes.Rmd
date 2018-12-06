@@ -1,0 +1,171 @@
+---
+title: "PCA_Latitudes"
+output: html_document
+---
+# Set-up
+```{r}
+# written in full by Joshua Craig
+
+library(tidyverse)
+my_data <- read_delim("~/Desktop/Predator_and_prey_body_sizes_in_marine_food_webs_vsn4.txt", delim = "\t")
+
+# convert latitudes
+my_data$NewLatitude <- str_replace(my_data$Latitude, "\xba", ".")
+my_data$NewLatitude <- str_replace(my_data$NewLatitude, "'", "")
+
+# rename columns
+colnames(my_data) <- tolower(gsub(' ', '_', colnames(my_data)))
+```
+
+```{r}
+unique(my_data$newlatitude)
+# highest latitude is 66.20N
+# closest to equator is 08.24N
+# lowest equator is 63.00S
+```
+
+# Making the data frames
+```{r}
+# clean up data frame 
+df1 <- my_data %>% select(predator, type_of_feeding_interaction, newlatitude) %>% group_by(predator, type_of_feeding_interaction, newlatitude) %>% summarize(count=n())
+df2 <- my_data %>% select(predator) %>% group_by(predator) %>% tally()
+df_current <- merge(df1, df2)
+
+# makes proportion column per feeding interaction
+df_current <- df_current %>% 
+  mutate(proportion = .$count / .$n * 100)
+
+# make wide data frame by spreading feeding interaction and filling with proportions
+df_current_wide <- spread(df_current, type_of_feeding_interaction, proportion)
+df_current_wide[is.na(df_current_wide)] <- 0
+
+# take the first two char. of latitude and making it + or - depending on N or S, use this to make North, Equator and South groupings
+# makes a new column, lat, with 
+df_current_wide$lat <- substr(df_current_wide$newlatitude, start = 1, stop = 2)
+df_current_wide$lat <- as.numeric(df_current_wide$lat)
+df_current_wide$lat <- ifelse(substr(df_current_wide$newlatitude, start = 6, stop = 6) == "S", df_current_wide$lat * (-1), df_current_wide$lat)
+
+# separated into two groups, north geographic locations and south geographic locations
+# division was made arbitrarily
+# doesnt even matter since I didnt use this or the divided PCAs
+df_PCA_north <- df_current_wide %>% filter(lat > 20) %>% select(-newlatitude, -count, -n, -lat)
+df_PCA_south <- df_current_wide %>% filter(lat < 10) %>% select(-newlatitude, -count, -n, -lat)
+
+# collapsing rows of common predators into one row
+df_PCA_north_NEW <- df_PCA_north %>%
+  group_by(predator) %>%
+  summarise_all(sum) %>%
+  data.frame()
+
+df_PCA_south_NEW <- df_PCA_south %>%
+  group_by(predator) %>%
+  summarise_all(sum) %>%
+  data.frame()
+```
+
+# Performing and plotting PCA for NORTH
+```{r}
+library(ggbiplot)
+# Making DF / Vectors for PCA (ggbiplot prefers this format)
+pp.data.north <- df_PCA_north_NEW[, 2:6]
+# this line specifically extracts the predator names column so I can colour PCA plot via predator in ggbiplot
+pp.predator.north <- df_PCA_north_NEW[, 1]
+pp.pca.north <- prcomp(pp.data.north, center = TRUE, scale. = TRUE)
+```
+
+```{r}
+# does PCA the plots it using ggbiplot
+PCA_plot_north <- ggbiplot(pp.pca.north, obs.scale = 1, var.scale = 1, 
+              groups = pp.predator.north, 
+              circle = TRUE,
+              ellipsis = TRUE)
+PCA_plot_north.1 <- PCA_plot_north + xlim(-4, 4)
+PCA_plot_north.1 <- PCA_plot_north.1 + ylim(-3, 4)
+PCA_plot_north.1 <- PCA_plot_north.1 + theme(legend.position = "none") + ggtitle("Feeding Interactions at 20N or Higher") 
+
+print(PCA_plot_north) # has legend
+print(PCA_plot_north.1) # does not have legend
+
+#this code will extract the legend
+library(cowplot)
+library(ggplotify)
+legend_north <- get_legend(PCA_plot_north)
+legend_north_plot <- as.ggplot(legend_north) + coord_cartesian(x = c(-10, 10), y = c(-10, 10)) 
+```
+
+# Performing and plotting PCA for South
+```{r}
+# set up dataframes as objects for ggbiplot
+pp.data.south <- df_PCA_south_NEW[, 3:5]
+pp.predator.south <- df_PCA_south_NEW[, 1]
+pp.pca.south <- prcomp(pp.data.south, center = TRUE, scale. = TRUE)
+```
+
+```{r}
+# does PCA and plots it via ggbiplot
+PCA_plot_south <- ggbiplot(pp.pca.south, obs.scale = 1, var.scale = 1, 
+              groups = pp.predator.south, 
+              circle = TRUE,
+              ellipsis = TRUE)
+PCA_plot_south.1 <- PCA_plot_south + xlim(-4, 4)
+PCA_plot_south.1 <- PCA_plot_south.1 + ylim(-5, 4)
+PCA_plot_south.1 <- PCA_plot_south.1 + theme(legend.position = "none") + ggtitle("Feeding Interactions at 10N or Lower")
+
+
+print(PCA_plot_south) # has legend
+print(PCA_plot_south.1) # does not have legend
+```
+
+# Performing and plotting PCA for ALL
+## Ended up not using segregated PCA since it turned out no to be meaningful to divide the two
+```{r}
+# establish new data frame with wanted columns
+df_current_wide_NEW <- df_current_wide %>% select(-newlatitude, -count, -n, -lat)
+
+# collapsed data frame (combine like predator rows and sum feeding interaction proportions)
+df_current_wide_NEW.1 <- df_current_wide_NEW %>%
+  group_by(predator) %>%
+  summarise_all(sum) %>%
+  data.frame()
+
+# sets up dataframes as objects to feed into ggbiplot
+pp.data.all <- df_current_wide_NEW.1[, 2:6]
+pp.predator.all <- df_current_wide_NEW.1[, 1]
+pp.pca.all <- prcomp(pp.data.all, center = TRUE, scale. = TRUE)
+print(pp.pca.all)
+
+# separate PCA for component eigenvalues  using psych
+library(psych)
+pc1 <- principal(pp.data.all, nfactors = 5, rotate = "varimax")
+pc1
+pc1_plot <- plot(pc1$values, type = "b") + title("Scree Plot")
+pc1_plot
+print.psych(pc1, cut = 0.3, sort = TRUE)
+```
+
+```{r}
+# performs PCA then plots it using ggbiplot
+PCA_plot_all <- ggbiplot(pp.pca.all, obs.scale = 1, var.scale = 1, 
+              groups = pp.predator.all, 
+              circle = TRUE,
+              ellipsis = TRUE)
+PCA_plot_all.1 <- PCA_plot_all + xlim(-4, 4)
+PCA_plot_all.1 <- PCA_plot_all.1 + ylim(-3, 4)
+PCA_plot_all.1 <- PCA_plot_all.1 + theme(legend.position = "none") + ggtitle("Feeding Interactions for All Predators at All Locations")
+
+print(PCA_plot_all) # has legend
+print(PCA_plot_all.1) # does not have legend
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
