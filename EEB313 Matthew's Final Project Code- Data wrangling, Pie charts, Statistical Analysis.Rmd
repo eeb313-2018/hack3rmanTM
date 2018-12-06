@@ -1,0 +1,219 @@
+---
+title: "EEB313 Final Project Code"
+output: pdf_document
+---
+ 
+```{r}
+library(tidyverse)
+```
+
+```{r}
+## Read in data from saved file
+data <- read_delim("pred_prey_data", delim = "\t")
+```
+
+```{r}
+## Convert Latitude to numbers
+data$NewLatitude <- str_replace(data$Latitude, "\xba", ".")
+
+data$NewLatitude <- str_replace(data$NewLatitude, "'", "")
+
+mutate(.data = data, Latposneg = 0)
+
+data$Latposneg <- ifelse(substr(data$NewLatitude, start = 6, stop = 6) == "N", data$Latposneg <- 1, data$Latposneg <- -1)
+
+head(data)
+
+data$NewLatitude <- str_replace(data$NewLatitude, "N", "")
+data$NewLatitude <- str_replace(data$NewLatitude, "S", "")
+data$NewLatitude <- as.numeric(data$NewLatitude) * data$Latposneg
+```
+
+```{r}
+## Select columns of interest
+data1 <- data %>% 
+  mutate(prey_mass_conv = ifelse(.$`Prey mass unit` == "mg", .$`Prey mass` * 1000, .$`Prey mass`)) %>% 
+  select(Predator, Prey, `Predator mass`, prey_mass_conv, `Type of feeding interaction`, `Geographic location`, `Specific habitat`, Depth, `Mean PP`, `Mean annual temp`, NewLatitude) %>% 
+  mutate(Genus = stringr::word(Predator, 1))
+
+```
+
+```{r}
+unique(data1$`Specific habitat`)
+```
+
+```{r}
+fi1 <- data1 %>% 
+ dplyr::group_by(`Geographic location`, `Specific habitat`) %>% 
+  mutate(n = n()) %>%  ## Count total number of observations within each ecological niche (Combination of location and habitat)
+  ungroup() %>% 
+  group_by(`Geographic location`, `Specific habitat`, `Type of feeding interaction`) %>% 
+  mutate(N_fi = n()) %>%  ## Count number of observations for each specific feeding interaction within each niche
+  ungroup()
+```
+
+```{r}
+fi2 <- fi1 %>% 
+  group_by(`Geographic location`, `Specific habitat`, `Type of feeding interaction`) %>% 
+  mutate(Ratio = (N_fi / n)) %>% ## Calculate ratio of each individual feeding interaction to total number of observations in a niche
+  summarize(Ratio = mean(Ratio), Total_fi = mean(n), N_fi = mean(N_fi)) ## summarize data by niche
+```
+
+```{r}
+fi3 <- fi2 %>% 
+dplyr::group_by(`Geographic location`, `Specific habitat`, `Type of feeding interaction`) %>% 
+  tally() %>%
+  tally()
+
+## Calculate total number of different feeding interactions observed within each niche
+```
+
+```{r}
+fi4 <- left_join(fi2, fi3, by = "Geographic location")
+
+fi5 <- fi4 %>% ## Construct data frame showing distribution of feeding interactions within each niche
+  select(-`Specific habitat.y`)
+
+```
+
+```{r}
+## Construct pie charts showing the distribution of different feeding interactions in each niche
+pie_charts <- fi5 %>% 
+  ggplot(aes(x = "", y = Ratio, fill = `Type of feeding interaction`)) +  
+  geom_bar(stat = "identity") + 
+  coord_polar("y", start=0) + 
+  facet_wrap(vars(`Geographic location`))
+```
+
+```{r}
+## Most variation is between predators and piscovores
+## Primarily planktivorous niches seem to be outliers
+## Calculated ratio of predators to piscovores in all non-outlier niches
+
+fi_by_n_pred <- fi2 %>% 
+  filter(`Type of feeding interaction` == "predacious") %>%
+  select(`Geographic location`, N_fi) %>%   
+  rename('pred_n' = N_fi)
+
+fi_by_n_pisc <- fi2 %>% 
+  filter(`Type of feeding interaction` == "piscivorous") %>% 
+  select(`Geographic location`, N_fi) %>% 
+  rename('pisc_n' = N_fi)
+
+## Created full final data frame for analysis
+fi9 <- full_join(fi_by_n_pred, fi_by_n_pisc) %>% ## Calculate ratio of predators to piscovores
+  mutate(pred_n_1 = ifelse(is.na(pred_n), 1, pred_n)) %>% 
+  mutate(pisc_n_1 = ifelse(is.na(pisc_n), 1, pisc_n)) %>% 
+  mutate(Pred_pisc_ratio = pred_n_1 / pisc_n_1)
+
+df_ec <- data1 %>%  ## Create data frame with environmental conditions
+  select(`Geographic location`, `Specific habitat`, `Depth`, `NewLatitude`, `Mean annual temp`, `Mean PP`) %>% 
+  group_by(`Geographic location`, `Specific habitat`) %>% 
+  summarize(Mean_pp = mean(`Mean PP`), Mean_an_temp = mean(`Mean annual temp`), Depth = mean(Depth), Latitude = median(NewLatitude))
+ 
+fi10 <- ## Join ratio data frame and environmental condition frame
+  right_join(fi9, df_ec) %>% 
+  select(-pred_n, -pisc_n) %>% 
+  filter(!is.na(Pred_pisc_ratio)) %>% 
+  mutate(Abs_lat = abs(Latitude)) %>%  ## Converted latitude to absolute latitude, treating as distance from equator)
+  filter(!`Geographic location` == "Oxwich Bay, Wales") %>% ## Cut out major outliers
+  filter(!`Geographic location` == "Western North Pacific") ## Cut out major outliers
+
+```
+
+```{r}
+ggplot(data = fi10, aes(x = `Geographic location`, y = Pred_pisc_ratio, color = `Geographic location`)) +
+  geom_boxplot(show.legend = FALSE) +
+  geom_hline(aes( yintercept = 1)) +
+  theme(axis.text.x = element_text(angle = -90, hjust = 0)) +
+  ylab("Ratio of Predators to Piscovores") +
+  ggtitle("Ratio of Generalist Predators to Piscovores by Location")
+
+```
+
+```{r}
+## Created a basic linear model for each individual environmental condition to approximate relationships and estimate fit
+## Plotted Ratio of Predators to Piscovores in each niche against each individual environmental factor with a regression line and fit value
+
+lm_d <- lm(Pred_pisc_ratio ~ Depth, data = fi10)
+fi10 %>% 
+ggplot(aes(x = `Depth`, y = Pred_pisc_ratio)) +
+  geom_smooth(method = 'lm', aes(x = Depth, y = Pred_pisc_ratio), se = FALSE, data = fi10) +
+  geom_text(x = 500, y = 40, label = format(summary(lm_d)$r.squared, digits = 3), parse = TRUE) +
+  geom_point(aes(color = `Geographic location`)) + 
+  ylab("Ratio of Predators to Piscovores") +
+  ggtitle("Ratio by Depth")
+
+lm_pp <- lm(Pred_pisc_ratio ~ `Mean_pp`, data = fi10)
+fi10 %>% 
+ggplot(aes(x = `Mean_pp`, y = Pred_pisc_ratio)) +
+  geom_smooth(method = 'lm', aes(x = Mean_pp, y = Pred_pisc_ratio), se = FALSE, data = fi10) +
+  geom_text(x = 250, y = 40, label = format(summary(lm_pp)$r.squared, digits = 3), parse = TRUE) +
+  geom_point(aes(color = `Geographic location`)) +
+  ylab("Ratio of Predators to Piscovores") +
+  xlab("Mean PP") +
+  ggtitle("Ratio by Mean PP")
+
+
+lm_l <- lm(Pred_pisc_ratio ~ Abs_lat, data = fi10)
+fi10 %>% 
+ggplot(aes(x = `Abs_lat`, y = Pred_pisc_ratio)) +
+  geom_smooth(method = 'lm', se = FALSE) + 
+  geom_text(x = 15, y = 40, label = format(summary(lm_l)$r.squared, digits = 3), parse = TRUE) +
+  geom_point(aes(color = `Geographic location`)) + 
+  xlab("Distance from Equator") +
+  ylab("Ratio of Predators to Piscovores") + 
+  ggtitle("Ratio by Distance from Equator")
+
+
+
+lm_t <- lm(Pred_pisc_ratio ~ Mean_an_temp, data = fi10)
+fi10 %>% 
+ggplot(aes(x = `Mean_an_temp`, y = Pred_pisc_ratio)) +
+  geom_smooth(method = 'lm', se = FALSE) +
+  geom_text(x = 3, y = 40, label = format(summary(lm_t)$r.squared, digits = 3), parse = TRUE) +
+  geom_point(aes(color = `Geographic location`)) +
+  ylab("Ratio of Predators to Piscovores") + 
+  xlab("Mean Annual Temperature") +
+  ggtitle("Ratio by Temperature")
+
+```
+
+```{r}
+#install.packages("car")
+library(car)
+library(lme4)
+library(lmerTest)
+library(MuMIn)
+```
+
+```{r}
+## Created all possible models for model selection
+
+lm_fi_sat <- lm(Pred_pisc_ratio ~ Depth * Abs_lat * Mean_pp * Mean_an_temp, data = fi10)
+lm_fi_no_d <- lm(Pred_pisc_ratio ~ Abs_lat * Mean_pp * Mean_an_temp, data = fi10)
+lm_fi_no_l <- lm(Pred_pisc_ratio ~ Depth * Mean_pp * Mean_an_temp, data = fi10)
+lm_fi_no_pp <-lm(Pred_pisc_ratio ~ Depth * Abs_lat * Mean_an_temp, data = fi10)
+lm_fi_no_t <- lm(Pred_pisc_ratio ~ Depth * Abs_lat * Mean_pp, data = fi10)
+lm_fi_rand_t <- lm(Pred_pisc_ratio ~ Depth * Abs_lat * Mean_pp + (1|Mean_an_temp), data = fi10)
+lm_fi_no_d_rand_t <- lm(Pred_pisc_ratio ~ Abs_lat * Mean_pp + (1|Mean_an_temp), data = fi10)
+lm_fi_no_d_no_t <- lm(Pred_pisc_ratio ~ Abs_lat * Mean_pp, data = fi10)
+
+```
+
+```{r}
+## Ran model selection
+AICc(lm_fi_sat, lm_fi_no_d, lm_fi_no_l, lm_fi_no_pp, lm_fi_no_t, lm_fi_rand_t, lm_fi_no_d_rand_t, lm_fi_no_d_no_t)
+## Model exlcuding depth and mean temperature has best fit to data
+```
+
+```{r}
+## Ran statistical tests
+summary(lm_fi_no_d_no_t)
+
+Anova(lm_fi_no_d_no_t, type = "3")
+
+## Significant effect of Mean PP on its own and the interaction
+
+```
+
